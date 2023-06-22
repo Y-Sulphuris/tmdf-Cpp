@@ -20,5 +20,7 @@ int main() {
 
 
     static_assert(sizeof(tag_type) == 1);
-
+    static_assert(sizeof(byte_tag) == 2);
+    static_assert(sizeof(short_tag) == 4);
+    static_assert(sizeof(int_tag) == 8);
 }

@@ -32,6 +32,50 @@ namespace tmdf {
     STRING_UTF16_TAG_TYPE = 19,
     CHAR_ARRAY_TAG_TYPE = 20;
 
+
+
+
+    template<class T> class tag;
+
+
+    struct nothing{};
+    typedef tag<nothing> any_tag;
+
+    template<class T>
+    static size_t sizeOfT(void* tag) {
+        return sizeof(T);
+    }
+    static size_t zero(void* tag) {
+        return 0;
+    }
+    static size_t sizeOfStringUTF8Tag(void* tag);
+    static size_t sizeOfStringURF16Tag(void* tag);
+
+    static size_t (*sizeOfTag[20])(void* tag) = {
+            &sizeOfT<char>,
+            &sizeOfT<short>,
+            &sizeOfT<int>,
+            &sizeOfT<long long>,
+            &sizeOfT<float>,
+            &sizeOfT<double>,
+            &zero,
+            &sizeOfStringUTF8Tag,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+    };
+
+
+
     struct tag_type {
         unsigned char typeID:7;
         unsigned char flag:1;
@@ -41,54 +85,181 @@ namespace tmdf {
         }
     };
 
-    struct nothing;
 
     template<class T> class tag {
         const tag_type _type;
     protected:
-        tag(unsigned char type, bool flag) :  _type(type, flag)  {
+        T _value;
+        tag(unsigned char type, bool flag, T& value) :  _type(type, flag), _value(value)  {
 
         }
     public:
-        virtual T* value() = 0;
+        inline T* value() {
+            return &_value;
+        };
 
-        T getValue() {
-            return *value();
+
+        [[nodiscard]] inline T getValue() const {
+            return _value;
         }
-        void setValue(T& value) {
-            this->*value() = value;
-        }
 
-        unsigned char getType() {
-            return _type.typeID;
-        }
-        bool flag() {
-            return _type.flag;
-        }
-        virtual int size() = 0;
-    };
-
-    typedef tag<nothing> any_tag;
-
-
-
-    class byte_tag final : public tag<signed char>{
-        signed char _value;
-    public:
-        byte_tag(signed char value) : tag<signed char>(BYTE_TAG_TYPE,false) {
+        inline void setValue(T& value) {
             _value = value;
         }
-        signed char * value() override {
-            return &_value;
+
+        /*
+        tag& operator=(T& value) {
+            setValue(value);
+        }*/
+
+        inline unsigned char getType() {
+            return _type.typeID;
         }
-        int size() override {
-            return 1;
+        inline bool flag() {
+            return _type.flag;
+        }
+        inline int payloadSize() {
+            return sizeOfTag[getType()-1](this);
         }
     };
 
 
 
+    template <
+            typename T,
+            typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type
+            >
+    class numerical_tag : public tag<T> {
+    protected:
+        numerical_tag(unsigned char type, bool flag, T value) :  tag<T>(type,flag,value)  {}
+    public:
+        int intValue() {
+            return (int)this->_value;
+        }
+        long long longValue() {
+            return (long long)this->_value;
+        }
+        double doubleValue() {
+            return (double)this->_value;
+        }
+    };
 
+    class byte_tag final : public numerical_tag<signed char> {
+    public:
+        byte_tag(signed char value) : numerical_tag<signed char>(BYTE_TAG_TYPE,false,value) {}
+        byte_tag(int value) : byte_tag((signed char)value) {}
+    };
+
+    class unsigned_byte_tag final : public numerical_tag<unsigned char> {
+    public:
+        unsigned_byte_tag(unsigned char value) : numerical_tag<unsigned char>(BYTE_TAG_TYPE,true,value) {}
+        unsigned_byte_tag(unsigned int value) : unsigned_byte_tag((unsigned char)value) {}
+    };
+
+    class short_tag final : public numerical_tag<signed short> {
+    public:
+        short_tag(signed short value) : numerical_tag<signed short>(SHORT_TAG_TYPE,false,value) {}
+    };
+
+    class unsigned_short_tag final : public numerical_tag<unsigned short> {
+    public:
+        unsigned_short_tag(unsigned short value) : numerical_tag<unsigned short>(SHORT_TAG_TYPE,true,value) {}
+    };
+
+    class int_tag final : public numerical_tag<int> {
+    public:
+        int_tag(int value) : numerical_tag<int>(INT_TAG_TYPE,false,value) {}
+    };
+
+    class unsigned_int_tag final : public numerical_tag<unsigned int> {
+    public:
+        unsigned_int_tag(unsigned int value) : numerical_tag<unsigned int>(LONG_TAG_TYPE,true,value) {}
+    };
+
+
+    class long_tag final : public numerical_tag<long long> {
+    public:
+        long_tag(long long value) : numerical_tag<long long>(INT_TAG_TYPE,false,value) {}
+    };
+
+    class unsigned_long_tag final : public numerical_tag<unsigned long long> {
+    public:
+        unsigned_long_tag(unsigned long long value) : numerical_tag<unsigned long long>(LONG_TAG_TYPE,true,value) {}
+    };
+
+
+    class float_tag final : public numerical_tag<float> {
+    public:
+        float_tag(float value) : numerical_tag<float>(FLOAT_TAG_TYPE,false,value) {}
+    };
+
+    class double_tag final : public numerical_tag<double> {
+    public:
+        double_tag(double value) : numerical_tag<double>(DOUBLE_TAG_TYPE,false,value) {}
+    };
+
+
+
+    class bool_tag final : public tag<bool> {
+    public:
+        bool_tag(bool value) : tag<bool>(BOOL_TAG_TYPE,false,value) {}
+
+        inline bool operator and(bool_tag other) {
+            return _value and other._value;
+        }
+        inline bool operator or(bool_tag other) {
+            return _value or other._value;
+        }
+        inline bool operator xor(bool_tag other) {
+            return _value xor other._value;
+        }
+        inline bool_tag operator not() {
+            return {not _value};
+        }
+    };
+
+    class string_utf8_tag final : public tag<std::string> {
+    public:
+        string_utf8_tag(std::string& value) : tag<std::string>(STRING_UTF8_TAG_TYPE,false,value) {}
+    };
+
+    static size_t sizeOfStringUTF8Tag(void* t) {
+        auto* tag = (string_utf8_tag*)t;
+        return (int)tag->getValue().length();
+    }
+
+
+    class taglist final : public tag<std::list<any_tag>> {
+    public:
+        taglist(std::list<any_tag>& value) : tag<std::list<any_tag>>(TAGLIST_TYPE,false,value) {}
+        [[nodiscard]] inline size_t size() const noexcept{
+            return _value.size();
+        }
+        [[nodiscard]] inline bool empty() const noexcept{
+            return _value.empty();
+        }
+        inline void clear() noexcept{
+            return _value.clear();
+        }
+        inline void push_front(any_tag& element) {
+            return _value.push_front(element);
+        }
+        inline void push_front(any_tag&& element) {
+            return _value.push_front(element);
+        }
+        inline void push_back(any_tag& element) {
+            return _value.push_back(element);
+        }
+        inline void push_back(any_tag&& element) {
+            return _value.push_back(element);
+        }
+        inline void pop_front() {
+            return _value.pop_front();
+        }
+        inline void pop_back() {
+            return _value.pop_back();
+        }
+    };
 
 
 }
