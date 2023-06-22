@@ -1,5 +1,4 @@
 #include <iostream>
-#include <bitset>
 #include "tmdf.h"
 
 
@@ -23,4 +22,10 @@ int main() {
     static_assert(sizeof(byte_tag) == 2);
     static_assert(sizeof(short_tag) == 4);
     static_assert(sizeof(int_tag) == 8);
+    return 0;
 }
+
+template<typename T>
+class test {
+    T* value;
+};

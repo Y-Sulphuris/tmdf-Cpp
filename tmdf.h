@@ -37,8 +37,12 @@ namespace tmdf {
 
     template<class T> class tag;
 
+    struct nothing{
+        static nothing& get() {
 
-    struct nothing{};
+        }
+    };
+
     typedef tag<nothing> any_tag;
 
     template<class T>
@@ -87,24 +91,24 @@ namespace tmdf {
 
 
     template<class T> class tag {
-        const tag_type _type;
+        const tag_type m_type;
     protected:
-        T _value;
-        tag(unsigned char type, bool flag, T& value) :  _type(type, flag), _value(value)  {
+        T m_value;
+        tag(unsigned char type, bool flag, T& value) : m_type(type, flag), m_value(value) {
 
         }
+
     public:
         inline T* value() {
-            return &_value;
+            return &m_value;
         };
 
-
         [[nodiscard]] inline T getValue() const {
-            return _value;
+            return m_value;
         }
 
         inline void setValue(T& value) {
-            _value = value;
+            m_value = value;
         }
 
         /*
@@ -113,15 +117,22 @@ namespace tmdf {
         }*/
 
         inline unsigned char getType() {
-            return _type.typeID;
+            return m_type.typeID;
         }
         inline bool flag() {
-            return _type.flag;
+            return m_type.flag;
         }
         inline int payloadSize() {
             return sizeOfTag[getType()-1](this);
         }
+
+        inline operator T() const {
+            return m_value;
+        }
     };
+
+
+
 
 
 
@@ -134,13 +145,13 @@ namespace tmdf {
         numerical_tag(unsigned char type, bool flag, T value) :  tag<T>(type,flag,value)  {}
     public:
         int intValue() {
-            return (int)this->_value;
+            return (int)this->m_value;
         }
         long long longValue() {
-            return (long long)this->_value;
+            return (long long)this->m_value;
         }
         double doubleValue() {
-            return (double)this->_value;
+            return (double)this->m_value;
         }
     };
 
@@ -205,16 +216,16 @@ namespace tmdf {
         bool_tag(bool value) : tag<bool>(BOOL_TAG_TYPE,false,value) {}
 
         inline bool operator and(bool_tag other) {
-            return _value and other._value;
+            return m_value and other.m_value;
         }
         inline bool operator or(bool_tag other) {
-            return _value or other._value;
+            return m_value or other.m_value;
         }
         inline bool operator xor(bool_tag other) {
-            return _value xor other._value;
+            return m_value xor other.m_value;
         }
         inline bool_tag operator not() {
-            return {not _value};
+            return {not m_value};
         }
     };
 
@@ -228,40 +239,70 @@ namespace tmdf {
         return (int)tag->getValue().length();
     }
 
-
-    class taglist final : public tag<std::list<any_tag>> {
+    template<class T>
+    class collection_tag : public tag<T> {
+    protected:
+        collection_tag(unsigned char type, bool flag, T& value) : tag<T>(type,flag,value)  {}
     public:
-        taglist(std::list<any_tag>& value) : tag<std::list<any_tag>>(TAGLIST_TYPE,false,value) {}
-        [[nodiscard]] inline size_t size() const noexcept{
-            return _value.size();
+        virtual inline size_t size() const noexcept = 0;
+        virtual inline bool empty() const noexcept = 0;
+        virtual inline void clear() noexcept = 0;
+    };
+
+    class taglist final : public collection_tag<std::list<any_tag>> {
+    public:
+        taglist(std::list<any_tag>& value) : collection_tag<std::list<any_tag>>(TAGLIST_TYPE,false,value) {}
+        [[nodiscard]] inline size_t size() const noexcept override {
+            return m_value.size();
         }
-        [[nodiscard]] inline bool empty() const noexcept{
-            return _value.empty();
+        [[nodiscard]] inline bool empty() const noexcept override {
+            return m_value.empty();
         }
-        inline void clear() noexcept{
-            return _value.clear();
+        inline void clear() noexcept override {
+            return m_value.clear();
         }
+        inline void add(any_tag& element) {
+            return push_front(element);
+        }/*
+        void remove(const any_tag& element) {
+            m_value.remove(element);
+        }*/
         inline void push_front(any_tag& element) {
-            return _value.push_front(element);
+            return m_value.push_front(element);
         }
         inline void push_front(any_tag&& element) {
-            return _value.push_front(element);
+            return m_value.push_front(element);
         }
         inline void push_back(any_tag& element) {
-            return _value.push_back(element);
+            return m_value.push_back(element);
         }
         inline void push_back(any_tag&& element) {
-            return _value.push_back(element);
+            return m_value.push_back(element);
         }
         inline void pop_front() {
-            return _value.pop_front();
+            return m_value.pop_front();
         }
         inline void pop_back() {
-            return _value.pop_back();
+            return m_value.pop_back();
         }
     };
 
-
+class tagmap final : public tag<std::map<std::string, any_tag>> {
+    public:
+        tagmap(std::map<std::string, any_tag>& value) : tag<std::map<std::string, any_tag>>(TAGMAP_TYPE,false,value) {}
+        [[nodiscard]] inline size_t size() const noexcept{
+            return m_value.size();
+        }
+        inline bool empty() const noexcept{
+            return m_value.empty();
+        }
+        inline void clear() noexcept {
+            return m_value.clear();
+        }
+        any_tag& operator[](const std::string& str) {
+            return m_value[str];
+        }
+    };
 }
 
 #endif //TMDF_H
