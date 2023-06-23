@@ -24,8 +24,3 @@ int main() {
     static_assert(sizeof(int_tag) == 8);
     return 0;
 }
-
-template<typename T>
-class test {
-    T* value;
-};

@@ -93,22 +93,22 @@ namespace tmdf {
     template<class T> class tag {
         const tag_type m_type;
     protected:
-        T m_value;
-        tag(unsigned char type, bool flag, T& value) : m_type(type, flag), m_value(value) {
+        T* m_value;
+        tag(unsigned char type, bool flag, T& value) : m_type(type, flag), m_value((T*)malloc(sizeof(value))) {
 
         }
 
     public:
         inline T* value() {
-            return &m_value;
+            return m_value;
         };
 
         [[nodiscard]] inline T getValue() const {
-            return m_value;
+            return *m_value;
         }
 
         inline void setValue(T& value) {
-            m_value = value;
+            *m_value = value;
         }
 
         /*
