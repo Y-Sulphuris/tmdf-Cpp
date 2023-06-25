@@ -19,8 +19,17 @@ int main() {
 
 
     static_assert(sizeof(tag_type) == 1);
-    static_assert(sizeof(byte_tag) == 2);
-    static_assert(sizeof(short_tag) == 4);
-    static_assert(sizeof(int_tag) == 8);
+    static_assert(sizeof(tag<std::any>) == 16);
+    static_assert(sizeof(tag<void*>) == 16);
+    static_assert(sizeof(any_tag) == 16);
+    static_assert(sizeof(byte_tag) == 16);
+    static_assert(sizeof(short_tag) == 16);
+    static_assert(sizeof(int_tag) == 16);
+    static_assert(sizeof(long_tag) == 16);
+    static_assert(sizeof(float_tag) == 16);
+    static_assert(sizeof(double_tag) == 16);
+    static_assert(sizeof(bool_tag) == 16);
+    static_assert(sizeof(taglist) == 16);
+    static_assert(sizeof(tagmap) == 16);
     return 0;
 }
